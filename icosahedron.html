@@ -1,0 +1,276 @@
+<html>
+
+<head>
+<title>Icosahedron</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec4 vColor;
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    varying vec4 vColor;
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+    }
+</script>
+
+
+<script type="text/javascript">
+    var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could not initialize WebGL, sorry :-(");
+        }
+    }
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+        return shader;
+    }
+    var shaderProgram;
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+        gl.useProgram(shaderProgram);
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    }
+    var mvMatrix = mat4.create();
+    var mvMatrixStack = [];
+    var pMatrix = mat4.create();
+    function mvPushMatrix() {
+        var copy = mat4.create();
+        mat4.set(mvMatrix, copy);
+        mvMatrixStack.push(copy);
+    }
+    function mvPopMatrix() {
+        if (mvMatrixStack.length == 0) {
+            throw "Invalid popMatrix!";
+        }
+        mvMatrix = mvMatrixStack.pop();
+    }
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+    function degToRad(degrees) {
+        return degrees * Math.PI / 180;
+    }
+	
+    var icosaVertexPositionBuffer;
+    var icosaVertexColorBuffer;
+    
+    function initBuffers() {
+        icosaVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, icosaVertexPositionBuffer);
+        var vertices = [
+            //face 1
+			0.0, 1.618, 1.0,
+			-1.0, 0.0, 1.618,
+			1.0, 0.0, 1.618,
+			//face 2
+			-1.0, 0.0, 1.618,
+			1.0, 0.0, 1.618,
+			0.0, -1.618, 1.0,
+			//face 3
+			0.0, 1.618, 1.0,
+			-1.618, 1.0, 0.0,
+			-1.0, 0.0, 1.618,
+			//face 4
+			0.0, 1.618, 1.0,
+			1.618, 1.0, 0.0,
+			1.0, 0.0, 1.618,
+			//face 5
+			1.0, 0.0, 1.618,
+			0.0, -1.618, 1.0,
+			1.618, -1.0, 0.0,
+			//face 6
+			-1.0, 0.0, 1.618,
+			0.0, -1.618, 1.0,
+			-1.618, -1.0, 0.0,
+			//face 7
+			1.0, 0.0, 1.618,
+			1.618, 1.0, 0.0,
+			1.618, -1.0, 0.0,
+			//face 8
+			-1.0, 0.0, 1.618,
+			-1.618, 1.0, 0.0,
+			-1.618, -1.0, 0.0,
+			//face 9
+			0.0, 1.618, 1.0,
+			0.0, 1.618, -1.0,
+			1.618, 1.0, 0.0,
+			//face 10
+			0.0, 1.618, 1.0,
+			0.0, 1.618, -1.0,
+			-1.618, 1.0, 0.0,
+			//face 11
+			0.0, -1.618, 1.0,
+			0.0, -1.618, -1.0,
+			1.618, -1.0, 0.0,
+			//face 12
+			0.0, -1.618, 1.0,
+			0.0, -1.618, -1.0,
+			-1.618, -1.0, 0.0,
+			//face 13
+			1.0, 0.0, -1.618,
+			1.618, 1.0, 0.0,
+			1.618, -1.0, 0.0,
+			//face 14
+			-1.0, 0.0, -1.618,
+			-1.618, 1.0, 0.0,
+			-1.618, -1.0, 0.0,
+			//face 15
+			0.0, 1.618, -1.0,
+			1.618, 1.0, 0.0,
+			1.0, 0.0, -1.618,
+			//face 16
+			0.0, 1.618, -1.0,
+			-1.618, 1.0, 0.0,
+			-1.0, 0.0, -1.618,
+			//face 17
+			0.0, 1.618, -1.0,
+			-1.0, 0.0, -1.618,
+			1.0, 0.0, -1.618,
+			//face 18
+			1.618, -1.0, 0.0,
+			1.0, 0.0, -1.618,
+			0.0, -1.618, -1.0,
+			//face 19
+			-1.618, -1.0, 0.0,
+			-1.0, 0.0, -1.618,
+			0.0, -1.618, -1.0,
+			//face 20
+			-1.0, 0.0, -1.618,
+			1.0, 0.0, -1.618,
+			0.0, -1.618, -1.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        icosaVertexPositionBuffer.itemSize = 3;
+        icosaVertexPositionBuffer.numItems = 60;
+        icosaVertexColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, icosaVertexColorBuffer);
+		var colors=[];
+		for (i=0;i<20;i++){
+			if (i%2==0){
+				addR=0.2;
+				addB=0.8;}
+			else{
+				addR=0.8;
+				addB=0.2;}
+			addG=0.4+(i%5)*0.15;
+			colors=colors.concat([addR,addG,addB,1.0]);
+			colors=colors.concat([addR,addG,addB,1.0]);
+			colors=colors.concat([addR,addG,addB,1.0]);
+		}
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+        icosaVertexColorBuffer.itemSize = 4;
+        icosaVertexColorBuffer.numItems = 60;
+        
+       
+    }
+    var rIcosa = 0;
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+        mat4.identity(mvMatrix);
+        mat4.translate(mvMatrix, [0.0, 0.0, -8.0]);
+        mvPushMatrix();
+        mat4.rotate(mvMatrix, degToRad(rIcosa), [1, 1, 1]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, icosaVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, icosaVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, icosaVertexColorBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, icosaVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        setMatrixUniforms();
+        gl.drawArrays(gl.TRIANGLES, 0, icosaVertexPositionBuffer.numItems);
+        mvPopMatrix();
+    }
+    var lastTime = 0;
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+            rIcosa += (60 * elapsed) / 1000.0;
+        }
+        lastTime = timeNow;
+    }
+    function tick() {
+        requestAnimFrame(tick);
+        drawScene();
+        animate();
+    }
+    function webGLStart() {
+        var canvas = document.getElementById("canvasID");
+        initGL(canvas);
+        initShaders()
+        initBuffers();
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.enable(gl.DEPTH_TEST);
+        tick();
+    }
+</script>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+    <canvas id="canvasID" style="border: none;" width="500" height="500"></canvas>
+</body>
+
+</html>
